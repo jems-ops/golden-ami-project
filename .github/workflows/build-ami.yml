@@ -22,7 +22,7 @@ on:
       aws_region:
         description: 'AWS Region'
         required: true
-        default: 'us-west-2'
+        default: 'us-east-1'
         type: string
       force_build:
         description: 'Force build even if no changes'
@@ -85,7 +85,7 @@ jobs:
         environment: 
           - ${{ github.event.inputs.environment || 'production' }}
         region:
-          - ${{ github.event.inputs.aws_region || 'us-west-2' }}
+          - ${{ github.event.inputs.aws_region || 'us-east-1' }}
     
     steps:
       - name: Checkout code
@@ -200,7 +200,7 @@ jobs:
         environment: 
           - ${{ github.event.inputs.environment || 'production' }}
         region:
-          - ${{ github.event.inputs.aws_region || 'us-west-2' }}
+          - ${{ github.event.inputs.aws_region || 'us-east-1' }}
     
     steps:
       - name: Checkout code
@@ -259,7 +259,7 @@ jobs:
           text: |
             ✅ Golden AMI build completed successfully!
             Environment: ${{ github.event.inputs.environment || 'production' }}
-            Region: ${{ github.event.inputs.aws_region || 'us-west-2' }}
+            Region: ${{ github.event.inputs.aws_region || 'us-east-1' }}
             Commit: ${{ github.sha }}
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -272,7 +272,7 @@ jobs:
           text: |
             ❌ Golden AMI build failed!
             Environment: ${{ github.event.inputs.environment || 'production' }}
-            Region: ${{ github.event.inputs.aws_region || 'us-west-2' }}
+            Region: ${{ github.event.inputs.aws_region || 'us-east-1' }}
             Commit: ${{ github.sha }}
             Please check the workflow logs for details.
         env:

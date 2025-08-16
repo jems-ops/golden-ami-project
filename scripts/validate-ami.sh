@@ -13,7 +13,7 @@ if [[ $# -lt 1 ]]; then
 fi
 
 AMI_ID="$1"
-REGION="${2:-us-west-2}"
+REGION="${2:-us-east-1}"
 
 # Colors for output
 RED='\033[0;31m'

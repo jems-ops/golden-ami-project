@@ -8,12 +8,12 @@ help: ## Display this help message
 	@echo
 	@echo "Environment variables:"
 	@echo "  ENV          - Environment (production, staging, development) [default: production]"
-	@echo "  REGION       - AWS region [default: us-west-2]"
+	@echo "  REGION       - AWS region [default: us-east-1]"
 	@echo "  INSTANCE_TYPE - EC2 instance type for building [default: t3.medium]"
 
 # Configuration
 ENV ?= production
-REGION ?= us-west-2
+REGION ?= us-east-1
 INSTANCE_TYPE ?= t3.medium
 
 # Directories

@@ -19,6 +19,15 @@ golden-ami-project/
 │   ├── roles/                 # Custom Ansible roles (future use)
 │   └── inventory/
 │       └── hosts              # Ansible inventory
+├── terraform/                 # Terraform modules and examples
+│   ├── modules/
+│   │   ├── golden-ami-data/   # AMI data source module
+│   │   ├── ec2-instance/      # EC2 instance deployment module
+│   │   └── asg-launch-template/ # Auto Scaling Group module
+│   └── examples/
+│       ├── single-instance/   # Single EC2 instance example
+│       ├── auto-scaling/      # Auto Scaling Group example
+│       └── multi-az-deployment/ # Multi-AZ deployment example
 ├── scripts/                   # Build and automation scripts
 │   ├── build-ami.sh           # Main AMI build script
 │   └── validate-ami.sh        # AMI validation script
@@ -299,14 +308,66 @@ For support and questions:
 - Check the troubleshooting section
 - Review AWS Packer documentation
 
+## 🏗️ Terraform Integration
+
+This project includes comprehensive Terraform modules for deploying infrastructure using the Golden AMIs:
+
+### Available Modules
+
+- **golden-ami-data**: Automatically finds the latest Golden AMI
+- **ec2-instance**: Deploys single or multiple EC2 instances
+- **asg-launch-template**: Creates Auto Scaling Groups with Launch Templates
+
+### Quick Start with Terraform
+
+1. **Deploy a single instance:**
+   ```bash
+   cd terraform/examples/single-instance
+   terraform init
+   terraform apply
+   ```
+
+2. **Deploy an Auto Scaling Group:**
+   ```bash
+   cd terraform/examples/auto-scaling
+   terraform init
+   terraform apply
+   ```
+
+### Module Usage
+
+```hcl
+module "web_servers" {
+  source = "./terraform/modules/ec2-instance"
+
+  name               = "web-servers"
+  instance_type      = "t3.medium"
+  instance_count     = 3
+  environment        = "production"
+  
+  # Golden AMI will be automatically selected
+  ami_name_pattern   = "golden-ami-ubuntu-22.04-*"
+  
+  # Security and access
+  enable_http        = true
+  enable_https       = true
+  create_iam_role    = true
+  
+  tags = {
+    Project = "MyApp"
+    Environment = "production"
+  }
+}
+```
+
 ## 🗺️ Roadmap
 
+- [x] Terraform integration for AMI deployment
 - [ ] Support for additional operating systems (CentOS, Amazon Linux)
 - [ ] Integration with AWS Config for compliance
 - [ ] Automated vulnerability scanning
 - [ ] Multi-region AMI distribution
 - [ ] Custom Ansible roles library
-- [ ] Terraform integration for AMI deployment
 
 ## 📚 Additional Resources
 

@@ -10,7 +10,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Default values
 ENVIRONMENT="${1:-production}"
-AWS_REGION="${2:-us-west-2}"
+AWS_REGION="${2:-us-east-1}"
 PACKER_DIR="$PROJECT_ROOT/packer"
 LOG_DIR="$PROJECT_ROOT/logs"
 
