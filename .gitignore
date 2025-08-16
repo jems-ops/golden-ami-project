@@ -15,11 +15,14 @@ aws-credentials
 *.pem
 *.key
 
-# Terraform state files (if used)
+# Terraform state files
 *.tfstate
 *.tfstate.*
 .terraform/
 .terraform.lock.hcl
+terraform.tfvars
+*.tfplan
+*.tfplan.*
 
 # Ansible vault files
 vault.yml

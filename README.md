@@ -105,7 +105,31 @@ aws cloudformation create-stack \
   --capabilities CAPABILITY_NAMED_IAM
 ```
 
-### Option 2: Create IAM Policy Manually
+### Option 2: Use Terraform Configuration
+Deploy using Terraform for more advanced features and flexibility:
+
+```bash
+# Navigate to policies directory
+cd policies
+
+# Copy example variables and customize
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars as needed
+
+# Deploy with Terraform
+terraform init
+terraform plan
+terraform apply
+```
+
+**Terraform Features:**
+- Cross-account role assumption
+- IAM user creation (alternative to roles)
+- Secure credential storage in SSM Parameter Store
+- Advanced policy customization
+- Enterprise-grade security features
+
+### Option 3: Create IAM Policy Manually
 1. Create an IAM policy using `policies/packer-ami-builder-policy.json`
 2. Create an IAM role and attach the policy
 3. Add the role ARN to your AWS credentials or instance profile

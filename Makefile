@@ -134,7 +134,7 @@ list-amis: ## List recent golden AMIs
 		--output table || echo "Failed to list AMIs"
 
 setup-iam: ## Deploy IAM roles using CloudFormation
-	@echo "Deploying IAM roles and policies..."
+	@echo "Deploying IAM roles and policies with CloudFormation..."
 	@aws cloudformation create-stack \
 		--stack-name packer-iam-roles \
 		--template-body file://policies/iam-roles.yml \
@@ -145,6 +145,18 @@ setup-iam: ## Deploy IAM roles using CloudFormation
 		--template-body file://policies/iam-roles.yml \
 		--capabilities CAPABILITY_NAMED_IAM \
 		--region $(REGION) || echo "IAM stack deployment failed"
+
+setup-iam-terraform: ## Deploy IAM roles using Terraform
+	@echo "Deploying IAM roles and policies with Terraform..."
+	@cd policies && terraform init && terraform apply -auto-approve
+
+validate-iam-terraform: ## Validate Terraform IAM configuration
+	@echo "Validating Terraform IAM configuration..."
+	@cd policies && terraform validate && terraform plan
+
+destroy-iam-terraform: ## Destroy Terraform IAM resources
+	@echo "Destroying Terraform IAM resources..."
+	@cd policies && terraform destroy -auto-approve
 
 info: ## Show project information
 	@echo "Golden AMI Project Information:"
