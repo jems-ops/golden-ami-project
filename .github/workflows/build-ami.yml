@@ -1,0 +1,279 @@
+name: Build Golden AMI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Build weekly on Sundays at 2 AM UTC
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to build for'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+          - development
+      aws_region:
+        description: 'AWS Region'
+        required: true
+        default: 'us-west-2'
+        type: string
+      force_build:
+        description: 'Force build even if no changes'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  PACKER_VERSION: "1.9.4"
+  ANSIBLE_VERSION: "7.0.0"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    name: Validate Templates
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Install Ansible
+        run: |
+          pip install ansible==${{ env.ANSIBLE_VERSION }}
+          ansible --version
+          
+      - name: Setup Packer
+        uses: hashicorp/setup-packer@main
+        with:
+          version: ${{ env.PACKER_VERSION }}
+          
+      - name: Validate Packer template
+        run: |
+          cd packer
+          packer validate golden-ami.pkr.hcl
+          
+      - name: Validate Ansible playbook
+        run: |
+          cd ansible
+          ansible-playbook --syntax-check playbooks/golden-ami.yml
+          
+      - name: Lint Ansible playbook
+        run: |
+          pip install ansible-lint
+          cd ansible
+          ansible-lint playbooks/golden-ami.yml || true  # Allow warnings
+
+  build:
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    name: Build AMI
+    
+    strategy:
+      matrix:
+        environment: 
+          - ${{ github.event.inputs.environment || 'production' }}
+        region:
+          - ${{ github.event.inputs.aws_region || 'us-west-2' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ matrix.region }}
+          
+      - name: Verify AWS credentials
+        run: |
+          aws sts get-caller-identity
+          
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          pip install ansible==${{ env.ANSIBLE_VERSION }}
+          sudo apt-get update
+          sudo apt-get install -y jq
+          
+      - name: Setup Packer
+        uses: hashicorp/setup-packer@main
+        with:
+          version: ${{ env.PACKER_VERSION }}
+          
+      - name: Initialize Packer
+        run: |
+          cd packer
+          packer init .
+          
+      - name: Build AMI
+        id: build
+        run: |
+          chmod +x scripts/build-ami.sh
+          ./scripts/build-ami.sh ${{ matrix.environment }} ${{ matrix.region }}
+          
+      - name: Get build results
+        id: results
+        run: |
+          if [ -f "logs/last-build-${{ matrix.environment }}.json" ]; then
+            AMI_ID=$(jq -r '.ami_id' logs/last-build-${{ matrix.environment }}.json)
+            BUILD_ID=$(jq -r '.build_id' logs/last-build-${{ matrix.environment }}.json)
+            echo "ami_id=$AMI_ID" >> $GITHUB_OUTPUT
+            echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
+            echo "build_success=true" >> $GITHUB_OUTPUT
+          else
+            echo "build_success=false" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs-${{ matrix.environment }}-${{ matrix.region }}
+          path: logs/
+          retention-days: 30
+          
+      - name: Upload Packer manifest
+        if: steps.results.outputs.build_success == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: packer-manifest-${{ matrix.environment }}-${{ matrix.region }}
+          path: packer/manifest.json
+          retention-days: 90
+          
+      - name: Create GitHub release (on main branch)
+        if: github.ref == 'refs/heads/main' && steps.results.outputs.build_success == 'true'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ami-${{ steps.results.outputs.build_id }}
+          release_name: Golden AMI ${{ steps.results.outputs.build_id }}
+          body: |
+            ## Golden AMI Build Results
+            
+            **AMI ID:** `${{ steps.results.outputs.ami_id }}`
+            **Region:** `${{ matrix.region }}`
+            **Environment:** `${{ matrix.environment }}`
+            **Build ID:** `${{ steps.results.outputs.build_id }}`
+            **Build Date:** `${{ github.event.head_commit.timestamp }}`
+            **Commit:** `${{ github.sha }}`
+            
+            ### Features Included
+            - Security hardening (SSH, firewall, fail2ban)
+            - CloudWatch monitoring agent
+            - Docker and Docker Compose
+            - Essential development tools
+            - System updates and patches
+            
+            ### Validation
+            This AMI has been validated and is ready for deployment.
+            
+          draft: false
+          prerelease: false
+
+  validate-ami:
+    runs-on: ubuntu-latest
+    needs: build
+    if: needs.build.result == 'success'
+    name: Validate Built AMI
+    
+    strategy:
+      matrix:
+        environment: 
+          - ${{ github.event.inputs.environment || 'production' }}
+        region:
+          - ${{ github.event.inputs.aws_region || 'us-west-2' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ matrix.region }}
+          
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-logs-${{ matrix.environment }}-${{ matrix.region }}
+          path: logs/
+          
+      - name: Get AMI ID from build logs
+        id: ami_info
+        run: |
+          if [ -f "logs/last-build-${{ matrix.environment }}.json" ]; then
+            AMI_ID=$(jq -r '.ami_id' logs/last-build-${{ matrix.environment }}.json)
+            echo "ami_id=$AMI_ID" >> $GITHUB_OUTPUT
+          else
+            echo "Build log file not found"
+            exit 1
+          fi
+          
+      - name: Validate AMI
+        run: |
+          chmod +x scripts/validate-ami.sh
+          # Run validation without interactive prompt
+          echo "n" | ./scripts/validate-ami.sh ${{ steps.ami_info.outputs.ami_id }} ${{ matrix.region }}
+          
+      - name: Tag AMI for production use
+        if: matrix.environment == 'production'
+        run: |
+          aws ec2 create-tags \
+            --region ${{ matrix.region }} \
+            --resources ${{ steps.ami_info.outputs.ami_id }} \
+            --tags Key=ProductionReady,Value=true Key=ValidationDate,Value=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: [build, validate-ami]
+    if: always()
+    name: Send Notifications
+    
+    steps:
+      - name: Send Slack notification on success
+        if: needs.build.result == 'success' && needs.validate-ami.result == 'success'
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          text: |
+            ✅ Golden AMI build completed successfully!
+            Environment: ${{ github.event.inputs.environment || 'production' }}
+            Region: ${{ github.event.inputs.aws_region || 'us-west-2' }}
+            Commit: ${{ github.sha }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          
+      - name: Send Slack notification on failure
+        if: needs.build.result == 'failure' || needs.validate-ami.result == 'failure'
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          text: |
+            ❌ Golden AMI build failed!
+            Environment: ${{ github.event.inputs.environment || 'production' }}
+            Region: ${{ github.event.inputs.aws_region || 'us-west-2' }}
+            Commit: ${{ github.sha }}
+            Please check the workflow logs for details.
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

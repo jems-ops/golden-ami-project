@@ -1,0 +1,138 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAM roles and policies for Golden AMI building with Packer'
+
+Parameters:
+  RoleName:
+    Type: String
+    Default: PackerAMIBuilderRole
+    Description: Name for the Packer AMI builder role
+  
+  PolicyName:
+    Type: String
+    Default: PackerAMIBuilderPolicy
+    Description: Name for the Packer AMI builder policy
+
+Resources:
+  # IAM Role for Packer
+  PackerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref RoleName
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                'sts:ExternalId': 'packer-build'
+      Path: /
+      Tags:
+        - Key: Purpose
+          Value: PackerAMIBuilding
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # IAM Policy for Packer
+  PackerPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Ref PolicyName
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: PackerInstanceManagement
+            Effect: Allow
+            Action:
+              - 'ec2:AttachVolume'
+              - 'ec2:AuthorizeSecurityGroupIngress'
+              - 'ec2:CopyImage'
+              - 'ec2:CreateImage'
+              - 'ec2:CreateKeypair'
+              - 'ec2:CreateSecurityGroup'
+              - 'ec2:CreateSnapshot'
+              - 'ec2:CreateTags'
+              - 'ec2:CreateVolume'
+              - 'ec2:DeleteKeyPair'
+              - 'ec2:DeleteSecurityGroup'
+              - 'ec2:DeleteSnapshot'
+              - 'ec2:DeleteVolume'
+              - 'ec2:DeregisterImage'
+              - 'ec2:DescribeImageAttribute'
+              - 'ec2:DescribeImages'
+              - 'ec2:DescribeInstances'
+              - 'ec2:DescribeInstanceStatus'
+              - 'ec2:DescribeRegions'
+              - 'ec2:DescribeSecurityGroups'
+              - 'ec2:DescribeSnapshots'
+              - 'ec2:DescribeSubnets'
+              - 'ec2:DescribeTags'
+              - 'ec2:DescribeVolumes'
+              - 'ec2:DescribeVpcs'
+              - 'ec2:DetachVolume'
+              - 'ec2:GetPasswordData'
+              - 'ec2:ModifyImageAttribute'
+              - 'ec2:ModifyInstanceAttribute'
+              - 'ec2:ModifySnapshotAttribute'
+              - 'ec2:RegisterImage'
+              - 'ec2:RunInstances'
+              - 'ec2:StopInstances'
+              - 'ec2:TerminateInstances'
+            Resource: '*'
+          - Sid: PackerIAMPassRole
+            Effect: Allow
+            Action:
+              - 'iam:PassRole'
+            Resource: '*'
+            Condition:
+              StringEquals:
+                'iam:PassedToService': 'ec2.amazonaws.com'
+          - Sid: PackerKeyManagement
+            Effect: Allow
+            Action:
+              - 'kms:Decrypt'
+              - 'kms:DescribeKey'
+              - 'kms:Encrypt'
+              - 'kms:GenerateDataKey*'
+              - 'kms:ReEncrypt*'
+            Resource: '*'
+            Condition:
+              StringEquals:
+                'kms:ViaService':
+                  - 'ec2.*.amazonaws.com'
+      Roles:
+        - !Ref PackerRole
+
+  # Instance Profile for EC2 instances (if needed)
+  PackerInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Sub '${RoleName}-InstanceProfile'
+      Path: /
+      Roles:
+        - !Ref PackerRole
+
+Outputs:
+  PackerRoleArn:
+    Description: ARN of the Packer IAM role
+    Value: !GetAtt PackerRole.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-PackerRoleArn'
+  
+  PackerRoleName:
+    Description: Name of the Packer IAM role
+    Value: !Ref PackerRole
+    Export:
+      Name: !Sub '${AWS::StackName}-PackerRoleName'
+  
+  PackerInstanceProfileArn:
+    Description: ARN of the Packer instance profile
+    Value: !GetAtt PackerInstanceProfile.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-PackerInstanceProfileArn'

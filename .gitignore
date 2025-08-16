@@ -1,0 +1,88 @@
+# Logs and build artifacts
+logs/
+*.log
+*.log.*
+
+# Packer build artifacts
+packer/manifest.json
+packer/*.pkr.hcl.backup
+packer/packer-*
+packer/packer_cache/
+
+# AWS credentials and config
+.aws/
+aws-credentials
+*.pem
+*.key
+
+# Terraform state files (if used)
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Ansible vault files
+vault.yml
+.vault_pass
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# Node.js (if used for scripts)
+node_modules/
+npm-debug.log*
+
+# Docker
+.docker/
+
+# OS generated files
+Thumbs.db
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# Backup files
+*.backup
+*.bak
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+
+# Environment specific configs
+.env
+.env.local
+.env.production
+.env.staging
+.env.development
+
+# Build outputs
+build/
+dist/
+out/
+
+# Coverage reports
+htmlcov/
+.coverage
+.nyc_output
+
+# Local test files
+test-*.json
+test-*.yml
+test-*.yaml
