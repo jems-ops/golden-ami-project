@@ -61,6 +61,7 @@ jobs:
       - name: Validate Packer template
         run: |
           cd packer
+          packer init . 
           packer validate golden-ami.pkr.hcl
           
       - name: Validate Ansible playbook
