@@ -79,10 +79,11 @@ validate_template() {
     log "Validating Packer template..."
     
     cd "$PACKER_DIR"
-    
+    packer init .
     if packer validate \
         -var "environment=$ENVIRONMENT" \
         -var "aws_region=$AWS_REGION" \
+        -var "build_user=$(whoami)" \
         golden-ami.pkr.hcl; then
         success "Packer template validation passed"
     else
@@ -106,6 +107,7 @@ build_ami() {
     if packer build \
         -var "environment=$ENVIRONMENT" \
         -var "aws_region=$AWS_REGION" \
+        -var "build_user=$(whoami)" \
         -var "ami_name_prefix=golden-ami-ubuntu-22.04-$BUILD_ID" \
         golden-ami.pkr.hcl; then
         

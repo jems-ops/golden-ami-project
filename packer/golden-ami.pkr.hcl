@@ -42,6 +42,12 @@ variable "environment" {
   default     = "production"
 }
 
+variable "build_user" {
+  type        = string
+  description = "User building the AMI"
+  default     = "unknown"
+}
+
 # Data sources
 data "amazon-ami" "ubuntu" {
   filters = {
@@ -124,7 +130,6 @@ build {
   # Run Ansible playbook
   provisioner "ansible" {
     playbook_file = "../ansible/playbooks/golden-ami.yml"
-    inventory_file = "../ansible/inventory/hosts"
     user = "ubuntu"
     extra_arguments = [
       "--extra-vars",
@@ -153,7 +158,7 @@ build {
     strip_path = true
     custom_data = {
       build_time = timestamp()
-      build_user = env("USER")
+      build_user = var.build_user
     }
   }
 }
